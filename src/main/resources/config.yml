@@ -1,0 +1,116 @@
+# ============================================================
+#  Masquerade · config.yml
+#  改完需要**完整重启**（/reload 不够）。逐键说明见 docs/05-配置规范.md。
+#  现场文件（plugins/Masquerade/config.yml）只增不改：升级时只补缺失键，
+#  绝不覆盖你改过的值（AGENTS.md 铁律 13）。
+# ============================================================
+
+items:
+  morphpotion:
+    # ItemCreator 物品 ID，必须与 items/morphpotion.yml 的顶层键一致
+    id: "masquerade_morphpotion"
+    # 易容药水的液体颜色（#RRGGBB）
+    color: "#99BB88"
+    # 药水名称（MiniMessage）；留空 = 沿用 items/morphpotion.yml 的 customName
+    name: ""
+    # 药水 lore（每行 MiniMessage）；留空 = 沿用 items/morphpotion.yml 的 lore
+    lore: []
+    # 是否把药水 tooltip 的「无效果」显示为「隐身」（只影响展示；药水仍不能喝）
+    show-invisibility-effect: true
+    # 采样冷却秒数（0 = 不冷却）
+    sample-cooldown-seconds: 1
+  masquerade:
+    # 方块易容术的显示名称（MiniMessage）；%s = 方块名（客户端翻译）
+    name: "<light_purple>易容术</light_purple>"
+    # 生物易容术的显示名称（MiniMessage）；%s = 生物名（客户端翻译）
+    mob-name: "<light_purple>易容术</light_purple>"
+    # 「易容术」的 lore（每行 MiniMessage；空字符串 = 空行）
+    lore:
+      - "<gray>饮用后，你将变为 %s </gray>"
+      - "<gray>按 <gold>下蹲 + 右键</gold> 退出易容</gray>"
+      - "<dark_gray>药效持续三分钟</dark_gray>"
+    # 生物易容术的 lore（与方块分开；缺键时用内置默认）
+    mob-lore:
+      - "<gray>饮用后，你将变为 %s </gray>"
+      - "<gray>按 <gold>下蹲 + 右键</gold> 退出易容</gray>"
+      - "<dark_gray>药效持续三分钟</dark_gray>"
+    # 冷却遮罩秒数（0 = 不设冷却）
+    cooldown-seconds: 1
+    # 冷却组（namespace:path），同组物品共享冷却
+    cooldown-group: "masquerade:masquerade"
+  # 不允许取样的方块（Material 名）；默认空 = 除空气外不拒绝任何方块
+  block-blacklist: []
+  # 图标不可见的方块（物品栏里看起来像空气，如屏障/光源/结构空位）
+  # 以及没有物品形态的方块（活塞头/水/耕地…）⇒ 一律改用药水外观（带颜色，绝不空白）
+  invisible-icon-blocks: [BARRIER, LIGHT, STRUCTURE_VOID]
+
+effect:
+  # 效果时长（秒）
+  duration-seconds: 180
+  # 玩家尺寸（Attribute.SCALE 基础值，0.5 = 50%）
+  scale: 0.5
+  # 是否给 3 分钟隐身
+  invisibility: true
+  # 隐身被移除（喝牛奶等）时是否立即结束易容
+  end-when-invisibility-lost: true
+  # 死亡时是否结束易容
+  end-on-death: true
+  # 方块易容时按下蹲键：传送到自身方块中心并把朝向矫正到 90° 的倍数
+  snap-on-sneak: true
+
+display:
+  # 展示实体的缩放（1.0 = 一个完整方块）
+  scale: 1.0
+  # 方块中心相对玩家脚底中心的偏移（格）；0 = 方块正好以玩家为中心、底面贴地
+  translation: [0.0, 0.0, 0.0]
+  # 展示实体的可视距离倍率
+  view-range: 1.0
+  # 是否对饮用者自己隐藏（false = 自己也能看见方块，第一人称会被挡住）
+  hide-from-self: false
+  # 是否让方块跟着玩家转身
+  sync-rotation: true
+  # 每 tick 传送时的客户端插值时长（0~20；越大越平滑但越"追尾"）
+  teleport-duration: 2
+
+commands:
+  # /masq item 的数量上限（36 格 × 64）
+  item-count-max: 2304
+
+# 玩家可见文本（纯文本，%s / %d 为占位符）
+messages:
+  prefix: "[假面舞会] "
+  no-permission: "你没有权限使用这个指令。"
+  players-only: "这个指令只能由玩家执行。"
+  usage: "用法：/masq item <方块id> [数量] / /masq clear [选择器] / /masq end"
+  unknown-item: "未知的物品 id：%s"
+  not-a-block: "%s 不是可放置方块。"
+  count-invalid: "数量必须是 1~%d 的整数。"
+  item-given: "已给予 %s ×%d"
+  item-given-dropped: "已给予 %s ×%d（背包放不下，%d 件掉在脚下）"
+  clear-done: "已清除 %d 名玩家的易容效果。"
+  clear-none: "没有玩家正在易容。"
+  selector-rejected: "不接受 @e 选择器，请用 @a / @p / 玩家名。"
+  selector-invalid: "选择器无效：%s"
+  morphpotion-not-drinkable: "这是制作易容术的原料，请潜行 + 右键对你想扮成的东西取样。"
+  sample-success: "已取样：%s（消耗 1 瓶易容药水）"
+  sample-dropped: "已取样：%s（背包放不下啦！）"
+  sample-cooldown: "取样冷却中，还需 %d 秒。"
+  sample-invalid: "这个方块无法取样。"
+  effect-applied: "你变成了 %s "
+  effect-ended: "易容效果已结束。"
+  effect-block-invalid: "这个易容术的方块数据已失效，无法使用。"
+  effect-failed: "易容失败，请稍后再试。"
+  effect-none: "你现在没有正在进行的变形。"
+  mob-invalid: "这个易容术的生物数据已失效，无法使用。"
+  mob-sample-invalid: "这个目标无法取样（只能对生物）。"
+  mob-world-changed: "你离开了主世界，易容已结束。"
+  mob-puppet-lost: "生物不见了，易容已结束。"
+  mob-camera-lost: "相机被脱离，易容已结束。"
+  mob-drive-failed: "操控失败，易容已结束。"
+  mob-rejoin-ended: "易容效果已结束。"
+  # /help 里的指令描述与用法（plugin.yml 只是出厂默认）
+  command-description: "易容术管理指令（item / clear / end）"
+  command-usage: "/masq <item|clear|end> ..."
+
+# true 时把取样/巡检/缓存命中的细节打到控制台
+debug: false

@@ -1,0 +1,22 @@
+# ============================================================
+#  Masquerade · 易容药水（ItemCreator 格式；定义唯一处）
+# ============================================================
+masquerade_morphpotion:
+  material: POTION
+  customName: "<#99BB88>易容药水</#99BB88>"
+  lore:
+    - "<gold>潜行 + 右键对准方块/实体取样，</gold>"
+    - "<gray>配方鲜为人知，原料极其稀有，需要一个月来熬制。</gray>"
+    - "<gray>也被称为复方汤剂</gray>"
+  # 可堆叠 64（POTION 原版只堆 1）
+  maxStackSize: 64
+  enchantments:
+    # - minecraft:unbreaking: 10
+  # 采样冷却 1 秒（冷却组 + 客户端遮罩；服务端还会 setCooldown）
+  useCooldown:
+    cooldownGroup: "masquerade:sampling"
+    seconds: 1
+  pdc:
+    - key: masquerade:type
+      type: STRING
+      value: morphpotion

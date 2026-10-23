@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.mczju</groupId>
+  <artifactId>Masquerade</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>Masquerade</name>
+  <description>MCZJU 万圣节活动插件：易容术（喝下药水变成一块方块）</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>25</maven.compiler.release>
+  </properties>
+
+  <repositories>
+    <!-- id 必须与本地仓库缓存时的 repository id 一致（本机 .m2 里是 papermc），否则 -o 离线解析会失败 -->
+    <repository>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+    <repository>
+      <id>jitpack.io</id>
+      <url>https://jitpack.io</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <!-- 服务端 API：provided（不打进 jar） -->
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>26.2.build.133-stable</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- 硬依赖：物品的 PDC / 贴图替换 / 冷却遮罩都由它构建（provided，现场已装 1.1.0） -->
+    <dependency>
+      <groupId>io.mczju</groupId>
+      <artifactId>MCZJUItemCreator</artifactId>
+      <version>1.1.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- 纯逻辑离线测试 -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>Masquerade-${project.version}</finalName>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>25</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <!--
+            测试 JVM 固定小堆 + SerialGC：本机（用户开着 MC 客户端与游戏）提交内存紧张，
+            surefire 默认 G1 堆会 mmap 失败（2026-10-21 实测 hs_err：G1 virtual space）。
+          -->
+          <argLine>-Xms16m -Xmx128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
