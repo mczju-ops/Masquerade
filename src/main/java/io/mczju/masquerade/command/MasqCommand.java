@@ -3,6 +3,7 @@ package io.mczju.masquerade.command;
 import io.mczju.masquerade.MasqueradePlugin;
 import io.mczju.masquerade.config.MasqConfig;
 import io.mczju.masquerade.config.Messages;
+import io.mczju.masquerade.config.MobBlacklist;
 import io.mczju.masquerade.effect.MasqueradeManager;
 import io.mczju.masquerade.effect.MobMasqueradeManager;
 import io.mczju.masquerade.item.CommandIds;
@@ -165,6 +166,11 @@ public final class MasqCommand implements CommandExecutor, TabCompleter {
                     // 不是方块 ⇒ 试生物类型（/masq item zombie）
                     EntityType mobType = mobTypeOf(parsed.block());
                     if (mobType != null) {
+                        // 2026-10-29 生物黑名单：指令也不能选中
+                        if (MobBlacklist.contains(config.items().mobBlacklist(), mobType.getKey().getKey())) {
+                            messages.send(player, "mob-blacklisted", items.mobName(mobType));
+                            return;
+                        }
                         giveMobItem(player, mobType, count);
                         return;
                     }
@@ -309,7 +315,9 @@ public final class MasqCommand implements CommandExecutor, TabCompleter {
                 }
                 for (EntityType type : EntityType.values()) {
                     Class<? extends Entity> clazz = type.getEntityClass();
-                    if (clazz != null && Mob.class.isAssignableFrom(clazz)) {
+                    // 2026-10-29 生物黑名单：补全里也不出现
+                    if (clazz != null && Mob.class.isAssignableFrom(clazz)
+                            && !MobBlacklist.contains(config.items().mobBlacklist(), type.getKey().getKey())) {
                         ids.add(type.getKey().getKey());
                     }
                 }

@@ -5,6 +5,7 @@ import io.mczju.masquerade.MasqKeys;
 import io.mczju.masquerade.MasqueradePlugin;
 import io.mczju.masquerade.config.MasqConfig;
 import io.mczju.masquerade.config.Messages;
+import io.mczju.masquerade.config.MobBlacklist;
 import io.mczju.masquerade.item.ItemKind;
 import io.mczju.masquerade.item.MasqItems;
 import io.mczju.masquerade.nms.MasqNms;
@@ -181,6 +182,18 @@ public final class MobMasqueradeManager implements Listener {
         return active.containsKey(player.getUniqueId());
     }
 
+    /**
+     * 2026-10-29 生物黑名单：命中的生物**不能取样、不能 `/masq item`、已有的对应易容术也不能喝**。
+     * 判据在纯函数 {@link MobBlacklist#contains}（大小写 / `minecraft:` 前缀已规范化）。
+     */
+    private boolean isBlacklisted(@NotNull EntityType type) {
+        // UNKNOWN 没有 key：getKey() 会抛 IllegalArgumentException；它也不可能是可取样/可饮用的生物
+        if (type == EntityType.UNKNOWN) {
+            return false;
+        }
+        return MobBlacklist.contains(config.items().mobBlacklist(), type.getKey().getKey());
+    }
+
     public void shutdown() {
         stopTask();
         for (UUID id : new ArrayList<>(active.keySet())) {
@@ -226,6 +239,11 @@ public final class MobMasqueradeManager implements Listener {
         }
         if (!(target instanceof Mob mob)) {
             messages.send(player, "mob-sample-invalid");
+            return;
+        }
+        // 2026-10-29 生物黑名单：不允许取样的生物，直接提示、不扣药水、不进冷却
+        if (isBlacklisted(mob.getType())) {
+            messages.send(player, "mob-blacklisted", items.mobName(mob.getType()));
             return;
         }
         if (items.hasSamplingCooldown(player)) {
@@ -283,6 +301,11 @@ public final class MobMasqueradeManager implements Listener {
         String snapshot = items.mobSnapshotOf(item);
         if (type.isEmpty() || snapshot == null || snapshot.isBlank()) {
             messages.send(player, "mob-invalid");
+            return false;
+        }
+        // 2026-10-29 生物黑名单：已有的对应易容术也不能喝（否则旧物品可以绕过黑名单）
+        if (isBlacklisted(type.get())) {
+            messages.send(player, "mob-blacklisted", items.mobName(type.get()));
             return false;
         }
         if (REMOVED_BOSSES.contains(type.get())) {
@@ -514,7 +537,11 @@ public final class MobMasqueradeManager implements Listener {
                     // 地面传送驱动只认「刚按下」的跳跃边沿，否则按住空格会一直往上飞（山羊 2026-10-23）
                     teleportStep(mob, yaw, forward, state.flying ? jumpInput : jumpPressed, down, speed, state.flying);
                 } else {
-                    MasqNms.driveVelocity(mob, yaw, forward, jump, down, speed, state.flying);
+                    Vector desired = MasqNms.driveVector(
+                            mob.getVelocity().getY(), yaw, forward, jump, down, speed, state.flying);
+                    // ★ 2026-10-29 用户收窄后的唯一限制：只对恼鬼（Vex）禁止钻进实心方块。
+                    //   其他生物、其他移动方式、射线、传送全部保持原样（跳跃/末影人/监守者音波不受影响）。
+                    mob.setVelocity(state.type == EntityType.VEX ? vexVelocity(mob, desired) : desired);
                 }
                 if (puffed.contains(mob.getUniqueId()) && mob instanceof PufferFish puffer) {
                     puffer.setPuffState(2);
@@ -597,6 +624,43 @@ public final class MobMasqueradeManager implements Listener {
                 mob.teleport(up);
             }
         }
+    }
+
+    /**
+     * ★ 2026-10-29 用户收窄后的**唯一**穿墙限制：恼鬼（Vex）不许钻进实心方块。
+     *
+     * <p>起因：恼鬼原版 {@code Vex#tick} 在 {@code super.tick()} 期间把 {@code noPhysics} 置 true
+     * （{@code javap} 已核），玩家变身恼鬼后可以**大范围、远距离**穿过地形，钻进服务器地下放命令方块
+     * 的房间。用户明确：只限制这一条，不要动其他生物的正常玩法。</p>
+     *
+     * <p>做法：按恼鬼**自己的碰撞箱**把这一 tick 的位移逐段采样（{@link WallGuard#SAMPLE_STEP}），
+     * 任意一段会进实心方块 ⇒ 本 tick 速度归零（停在墙前）。恼鬼本来就悬空、无重力，
+     * 速度就是它唯一的位移来源，所以预检足够，不需要每 tick 回滚。</p>
+     *
+     * <p>★ 不校验玩家本体、不校验其他生物、不改传送/射线：那些都是上一次过宽修复的错误，
+     * 已全部回退（见 {@code dev-log/2026-10-29-040}）。</p>
+     */
+    private @NotNull Vector vexVelocity(@NotNull Mob mob, @NotNull Vector desired) {
+        Location from = mob.getLocation();
+        if (!bodyClear(mob, from)) {
+            // 已经卡在方块里（极端情况）：允许往外飞，否则永远出不来
+            return desired;
+        }
+        for (double[] point : WallGuard.sweep(from.getX(), from.getY(), from.getZ(),
+                from.getX() + desired.getX(), from.getY() + desired.getY(), from.getZ() + desired.getZ(),
+                WallGuard.SAMPLE_STEP)) {
+            if (!bodyClear(mob, new Location(from.getWorld(), point[0], point[1], point[2]))) {
+                return new Vector(0, 0, 0);
+            }
+        }
+        return desired;
+    }
+
+    /** 恼鬼自己的身体在这个脚底位置是否不与方块碰撞（水面/草等可穿过方块不算）。 */
+    private static boolean bodyClear(@NotNull Mob mob, @NotNull Location feet) {
+        World world = feet.getWorld();
+        return world != null && WallGuard.clear(world, WallGuard.box(
+                feet.getX(), feet.getY(), feet.getZ(), mob.getWidth(), mob.getHeight()));
     }
 
     private static boolean onLava(@NotNull Entity entity) {

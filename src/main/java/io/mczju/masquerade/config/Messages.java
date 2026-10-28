@@ -58,6 +58,8 @@ public final class Messages {
         m.put("mob-camera-lost", "相机被脱离，附身已结束。");
         m.put("mob-drive-failed", "操控失败，附身已结束。");
         m.put("mob-rejoin-ended", "易容效果已结束。");
+        // 2026-10-29 生物黑名单：取样 / 指令 / 喝下已有的对应易容术都提示这条（%s = 生物名）
+        m.put("mob-blacklisted", "这个生物不允许变身：%s");
         // 指令元数据（/help 与用法提示）；plugin.yml 里只是出厂默认，运行时以这里为准
         m.put("command-description", "易容术管理指令（item / clear / end）");
         m.put("command-usage", "/masq <item|clear|end> ...");

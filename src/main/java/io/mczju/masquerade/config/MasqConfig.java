@@ -3,6 +3,7 @@ package io.mczju.masquerade.config;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.EntityType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashSet;
@@ -40,6 +41,7 @@ public record MasqConfig(
             int cooldownSeconds,
             String cooldownGroup,
             Set<Material> blockBlacklist,
+            Set<String> mobBlacklist,
             Set<Material> invisibleIconBlocks
     ) {
     }
@@ -110,13 +112,15 @@ public record MasqConfig(
         String cooldownGroup = str(cfg, "items.masquerade.cooldown-group", "masquerade:masquerade");
         Set<Material> blacklist = materialSet(cfg.getStringList("items.block-blacklist"),
                 List.of(), "items.block-blacklist", log);
+        // 生物黑名单（2026-10-29 用户）：写进去的生物不能被取样 / 指令选中 / 喝下对应的易容术
+        Set<String> mobBlacklist = mobBlacklist(cfg.getStringList("items.mob-blacklist"), log);
         // 图标不可见的方块（物品栏里看起来像空气）⇒ 改用药水外观（用户 2026-10-22 要求）
         Set<Material> invisibleIcons = materialSet(cfg.getStringList("items.invisible-icon-blocks"),
                 List.of("BARRIER", "LIGHT", "STRUCTURE_VOID"), "items.invisible-icon-blocks", log);
 
         Items items = new Items(potionId, potionColor, potionName, potionLore, potionInvisibility,
                 sampleCooldownSeconds, name, mobName, lore, mobLore, cooldownSeconds, cooldownGroup,
-                blacklist, invisibleIcons);
+                blacklist, mobBlacklist, invisibleIcons);
 
         Effect effect = new Effect(
                 clampInt(cfg.getInt("effect.duration-seconds", 180), 1, 3600, "effect.duration-seconds", log),
@@ -188,6 +192,40 @@ public record MasqConfig(
             log.warning("items.morphpotion.color = " + raw + " 解析失败，使用默认颜色。");
             return def;
         }
+    }
+
+    /**
+     * 生物黑名单：规范化 + 校验 `EntityType` 名；写错的名字只 WARN 并忽略（不阻断加载）。
+     *
+     * <p>比较用 {@code EntityType#getKey().getKey()}（如 {@code vex}），与
+     * {@link MobBlacklist#contains} 的规范化口径一致。</p>
+     */
+    private static Set<String> mobBlacklist(List<String> rawList, Logger log) {
+        Set<String> known = new LinkedHashSet<>();
+        for (EntityType type : EntityType.values()) {
+            // ★ UNKNOWN 没有 key：EntityType#getKey() 会直接抛 IllegalArgumentException（2026-10-29 冒烟实测）
+            if (type == EntityType.UNKNOWN) {
+                continue;
+            }
+            try {
+                known.add(type.getKey().getKey());
+            } catch (RuntimeException ignored) {
+                // 其它没有 key 的类型也不参与黑名单
+            }
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String raw : rawList) {
+            String key = MobBlacklist.normalize(raw);
+            if (key.isEmpty()) {
+                continue;
+            }
+            if (!known.contains(key)) {
+                log.warning("items.mob-blacklist 里的 " + raw + " 不是有效 EntityType，已忽略。");
+                continue;
+            }
+            out.add(key);
+        }
+        return Set.copyOf(out);
     }
 
     private static Set<Material> materialSet(List<String> rawList, List<String> defaults,

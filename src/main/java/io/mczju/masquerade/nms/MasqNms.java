@@ -190,16 +190,22 @@ public final class MasqNms {
     }
 
     /**
-     * 速度驱动；{@code down} 为 true 时给一个向下的速度（飞行/游泳生物用下蹲下降）。
-     * ★ 不再在这里判 {@code isOnGround()}：调用方已经按「地面跳 / 飞行悬浮」决定 {@code jump}；
-     *   飞行生物不按空格时 Y 归零 = 悬浮（修复 2026-10-22 蝙蝠/烈焰人/蜜蜂/幻翼不能起飞）。
+     * 速度驱动的**目标速度向量**（只算不设；调用方先拿到向量，恼鬼再按自己的碰撞箱做一次
+     * 「不许钻进实心方块」的预检，其他生物直接 {@code setVelocity}）。
+     *
+     * <p>{@code down} 为 true 时给一个向下的速度（飞行/游泳生物用下蹲下降）。
+     * ★ 不在这里判 {@code isOnGround()}：调用方已经按「地面跳 / 飞行悬浮」决定 {@code jump}；
+     *   飞行生物不按空格时 Y 归零 = 悬浮（修复 2026-10-22 蝙蝠/烈焰人/蜜蜂/幻翼不能起飞）。</p>
+     *
+     * <p>2026-10-29：从 {@code driveVelocity(…)} 拆成纯计算，是为了让恼鬼专属的限制能在
+     * 设置速度之前插一脚；<b>其他生物的行为与拆分前完全一致</b>。</p>
      */
-    public static void driveVelocity(@NotNull Entity mob, float yaw, float forward, boolean jump, boolean down,
-                                     float speed, boolean flying) {
+    public static @NotNull Vector driveVector(double currentVertical, float yaw, float forward,
+                                              boolean jump, boolean down, float speed, boolean flying) {
         double radians = Math.toRadians(yaw);
         double directionX = -Math.sin(radians);
         double directionZ = Math.cos(radians);
-        double vertical = mob.getVelocity().getY();
+        double vertical = currentVertical;
         if (down) {
             vertical = -0.25;
         } else if (jump) {
@@ -208,10 +214,9 @@ public final class MasqNms {
             vertical = 0.0;
         }
         if (forward == 0.0f) {
-            mob.setVelocity(new Vector(0.0, vertical, 0.0));
-        } else {
-            mob.setVelocity(new Vector(directionX * speed * forward, vertical, directionZ * speed * forward));
+            return new Vector(0.0, vertical, 0.0);
         }
+        return new Vector(directionX * speed * forward, vertical, directionZ * speed * forward);
     }
 
     /** 调原版近战攻击（播放生物自己的攻击动画/音效；伤害由 EntityDamageByEntityEvent 取消）。 */

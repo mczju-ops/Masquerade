@@ -40,6 +40,10 @@ items:
     cooldown-group: "masquerade:masquerade"
   # 不允许取样的方块（Material 名）；默认空 = 除空气外不拒绝任何方块
   block-blacklist: []
+  # 生物黑名单（EntityType 名，不区分大小写，可带 minecraft: 前缀）
+  # 写进来的生物：不能取样、不能 /masq item 选中、已有的对应易容术也不能喝
+  # 例：mob-blacklist: [VEX, WARDEN]；留空 = 不限制
+  mob-blacklist: []
   # 图标不可见的方块（物品栏里看起来像空气，如屏障/光源/结构空位）
   # 以及没有物品形态的方块（活塞头/水/耕地…）⇒ 一律改用药水外观（带颜色，绝不空白）
   invisible-icon-blocks: [BARRIER, LIGHT, STRUCTURE_VOID]
@@ -108,6 +112,7 @@ messages:
   mob-camera-lost: "相机被脱离，易容已结束。"
   mob-drive-failed: "操控失败，易容已结束。"
   mob-rejoin-ended: "易容效果已结束。"
+  mob-blacklisted: "这个生物不允许变身：%s"
   # /help 里的指令描述与用法（plugin.yml 只是出厂默认）
   command-description: "易容术管理指令（item / clear / end）"
   command-usage: "/masq <item|clear|end> ..."
